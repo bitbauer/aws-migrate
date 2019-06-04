@@ -1,0 +1,575 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Creates resources necessary for AWS Database Migration Service (DMS) Lab and the Schema Conversion Tool (SCT) Lab which is part of the Database Migration Workshop.",
+  "Parameters": {
+    "KeyName": {
+      "Description": "",
+      "Type": "AWS::EC2::KeyPair::KeyName"
+    }
+  },
+  "Resources": {
+    "DmsVpc": {
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": "172.31.0.0/16",
+        "EnableDnsSupport": "true",
+        "EnableDnsHostnames": "true",
+        "InstanceTenancy": "default",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                "-",
+                [
+                  {
+                    "Ref": "AWS::StackName"
+                  },
+                  "DmsVpc"
+                ]
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "DMSInternetGateway": {
+      "Type": "AWS::EC2::InternetGateway",
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                "-",
+                [
+                  {
+                    "Ref": "AWS::StackName"
+                  },
+                  "DMSInternetGateway"
+                ]
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "DMSAttachGateway": {
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+      "Properties": {
+        "VpcId": {
+          "Ref": "DmsVpc"
+        },
+        "InternetGatewayId": {
+          "Ref": "DMSInternetGateway"
+        }
+      }
+    },
+    "DmsSubnet1": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "DmsVpc"
+        },
+        "MapPublicIpOnLaunch": "true",
+        "CidrBlock": "172.31.0.0/24",
+        "AvailabilityZone": "us-east-1a",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                "-",
+                [
+                  {
+                    "Ref": "AWS::StackName"
+                  },
+                  "DmsSubnet1"
+                ]
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "DmsSubnet2": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "DmsVpc"
+        },
+        "MapPublicIpOnLaunch": "true",
+        "CidrBlock": "172.31.8.0/24",
+        "AvailabilityZone": "us-east-1c",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                "-",
+                [
+                  {
+                    "Ref": "AWS::StackName"
+                  },
+                  "DmsSubnet2"
+                ]
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "DmsSubnet3": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "DmsVpc"
+        },
+        "MapPublicIpOnLaunch": "true",
+        "CidrBlock": "172.31.16.0/24",
+        "AvailabilityZone": "us-east-1d",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                "-",
+                [
+                  {
+                    "Ref": "AWS::StackName"
+                  },
+                  "DmsSubnet3"
+                ]
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "DmsDbSubnetGroup": {
+      "Type": "AWS::RDS::DBSubnetGroup",
+      "Properties": {
+        "DBSubnetGroupDescription": "DMS DB Subnet Group",
+        "SubnetIds": [
+          {
+            "Ref": "DmsSubnet1"
+          },
+          {
+            "Ref": "DmsSubnet2"
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                "-",
+                [
+                  {
+                    "Ref": "AWS::StackName"
+                  },
+                  "DmsDbSubnetGroup"
+                ]
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "DmsPublicRouteTable": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "DmsVpc"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                "-",
+                [
+                  {
+                    "Ref": "AWS::StackName"
+                  },
+                  "DmsPublicRouteTable"
+                ]
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "DmsPublicRoute": {
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "DmsPublicRouteTable"
+        },
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {
+          "Ref": "DMSInternetGateway"
+        }
+      }
+    },
+    "DmsSubnet1RouteTableAssociationA": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": {
+          "Ref": "DmsSubnet1"
+        },
+        "RouteTableId": {
+          "Ref": "DmsPublicRouteTable"
+        }
+      }
+    },
+    "DmsSubnet2RouteTableAssociationA": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "SubnetId": {
+          "Ref": "DmsSubnet2"
+        },
+        "RouteTableId": {
+          "Ref": "DmsPublicRouteTable"
+        }
+      }
+    },
+    "AppSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "VpcId": {
+          "Ref": "DmsVpc"
+        },
+        "GroupDescription": "DMS Workshop - Applied to Source EC2 App",
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "22",
+            "ToPort": "22",
+            "CidrIp": "0.0.0.0/0",
+            "Description": "Allows SSH Access from anywhere"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "80",
+            "ToPort": "80",
+            "CidrIp": "0.0.0.0/0",
+            "Description": "Allows HTTP Access from anywhere"
+          }
+        ]
+      }
+    },
+    "InstanceSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "VpcId": {
+          "Ref": "DmsVpc"
+        },
+        "GroupDescription": "DMS Workshop - Applied to Source EC2 Instance",
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "3389",
+            "ToPort": "3389",
+            "CidrIp": "0.0.0.0/0",
+            "Description": "Allows RDP Access from anywhere"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "1433",
+            "ToPort": "1433",
+            "SourceSecurityGroupId": {
+              "Ref": "ReplicationInstanceSecurityGroup"
+            },
+            "Description": "Allows SQL Server Access from Replication Instance"
+          }
+        ]
+      }
+    },
+    "SQLServerSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "VpcId": {
+          "Ref": "DmsVpc"
+        },
+        "GroupDescription": "DMS Workshop - Applied to RDS SQL Server",
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "1433",
+            "ToPort": "1433",
+            "SourceSecurityGroupId": {
+              "Ref": "InstanceSecurityGroup"
+            },
+            "Description": "Allows SQL Server Access from EC2 Source Instance"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "1433",
+            "ToPort": "1433",
+            "SourceSecurityGroupId": {
+              "Ref": "ReplicationInstanceSecurityGroup"
+            },
+            "Description": "Allows SQL Server Access from Replication Instance"
+          }
+        ]
+      }
+    },
+    "AuroraSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "VpcId": {
+          "Ref": "DmsVpc"
+        },
+        "GroupDescription": "DMS Workshop - Applied to Amazon Aurora Cluster",
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "3306",
+            "ToPort": "3306",
+            "SourceSecurityGroupId": {
+              "Ref": "InstanceSecurityGroup"
+            },
+            "Description": "Allows MySQL Access from EC2 Source Instance"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "3306",
+            "ToPort": "3306",
+            "SourceSecurityGroupId": {
+              "Ref": "ReplicationInstanceSecurityGroup"
+            },
+            "Description": "Allows MySQL Access from Replication Instance"
+          }
+        ]
+      }
+    },
+    "ReplicationInstanceSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "VpcId": {
+          "Ref": "DmsVpc"
+        },
+        "GroupDescription": "DMS Workshop - Applied to Replication Instance"
+      }
+    },
+    "EC2SourceDB": {
+      "Type": "AWS::EC2::Instance",
+      "Properties": {
+        "SubnetId": {
+          "Ref": "DmsSubnet1"
+        },
+        "InstanceType": "m5.large",
+        "SecurityGroupIds": [
+          {
+            "Ref": "InstanceSecurityGroup"
+          }
+        ],
+        "KeyName": {
+          "Ref": "KeyName"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                "-",
+                [
+                  {
+                    "Ref": "AWS::StackName"
+                  },
+                  "EC2SourceDB"
+                ]
+              ]
+            }
+          }
+        ],
+        "BlockDeviceMappings": [
+          {
+            "DeviceName": "/dev/sda1",
+            "Ebs": {
+              "DeleteOnTermination": "true",
+              "Iops": "7500",
+              "VolumeSize": "150",
+              "VolumeType": "io1"
+            }
+          }
+        ],
+        "ImageId": "ami-0e7921a9f5c754039"
+      }
+    },
+    "EC2SourceApp": {
+      "Type": "AWS::EC2::Instance",
+      "Properties": {
+        "SubnetId": {
+          "Ref": "DmsSubnet1"
+        },
+        "InstanceType": "t2.micro",
+        "SecurityGroupIds": [
+          {
+            "Ref": "AppSecurityGroup"
+          }
+        ],
+        "KeyName": {
+          "Ref": "KeyName"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                "-",
+                [
+                  {
+                    "Ref": "AWS::StackName"
+                  },
+                  "EC2SourceApp"
+                ]
+              ]
+            }
+          }
+        ],
+        "ImageId": "ami-0fb91ae92ce049a1b"
+      }
+    },
+    "AuroraDestinationDBCluster": {
+      "Type": "AWS::RDS::DBCluster",
+      "Properties": {
+        "DBSubnetGroupName": {
+          "Ref": "DmsDbSubnetGroup"
+        },
+        "VpcSecurityGroupIds": [
+          {
+            "Fn::GetAtt": [
+              "AuroraSecurityGroup",
+              "GroupId"
+            ]
+          }
+        ],
+        "DatabaseName": "AuroraDestinationDB",
+        "Engine": "aurora",
+        "MasterUsername": "awssct",
+        "MasterUserPassword": "Password1"
+      },
+      "DependsOn": "AuroraSecurityGroup"
+    },
+    "AuroraDestinationDBInstance": {
+      "Type": "AWS::RDS::DBInstance",
+      "Properties": {
+        "DBClusterIdentifier": {
+          "Ref": "AuroraDestinationDBCluster"
+        },
+        "DBInstanceIdentifier": {
+          "Fn::Join": [
+            "-",
+            [
+              {
+                "Ref": "AWS::StackName"
+              },
+              "AuroraInstance"
+            ]
+          ]
+        },
+        "DBSubnetGroupName": {
+          "Ref": "DmsDbSubnetGroup"
+        },
+        "DBInstanceClass": "db.r4.large",
+        "Engine": "aurora",
+        "EngineVersion": "5.6.10a",
+        "LicenseModel": "general-public-license",
+        "PubliclyAccessible": "false"
+      }
+    },
+    "SQLTargetDB": {
+      "Type": "AWS::RDS::DBInstance",
+      "Properties": {
+        "DBSubnetGroupName": {
+          "Ref": "DmsDbSubnetGroup"
+        },
+        "VPCSecurityGroups": [
+          {
+            "Fn::GetAtt": [
+              "SQLServerSecurityGroup",
+              "GroupId"
+            ]
+          }
+        ],
+        "DBInstanceIdentifier": {
+          "Fn::Join": [
+            "-",
+            [
+              {
+                "Ref": "AWS::StackName"
+              },
+              "SqlServerRdsInstance"
+            ]
+          ]
+        },
+        "LicenseModel": "license-included",
+        "Engine": "sqlserver-se",
+        "EngineVersion": "12.00.4422.0.v1",
+        "DBInstanceClass": "db.r4.large",
+        "AllocatedStorage": "200",
+        "Iops": "2000",
+        "MasterUsername": "awssct",
+        "MasterUserPassword": "Password1",
+        "PubliclyAccessible": "false",
+        "BackupRetentionPeriod": "0"
+      },
+      "DependsOn": "SQLServerSecurityGroup"
+    }
+  },
+  "Outputs": {
+    "SourceEC2EndpointDns": {
+      "Description": "Public DNSName of the newly created EC2 instance",
+      "Value": {
+        "Fn::GetAtt": [
+          "EC2SourceDB",
+          "PublicDnsName"
+        ]
+      }
+    },
+    "SourceEC2PrivateDns": {
+      "Description": "Private DNSName of the newly created EC2 instance",
+      "Value": {
+        "Fn::GetAtt": [
+          "EC2SourceDB",
+          "PrivateDnsName"
+        ]
+      }
+    },
+    "TargetSqlServerEndpointDns": {
+      "Description": "Target SQL Server RDS Instance",
+      "Value": {
+        "Fn::GetAtt": [
+          "SQLTargetDB",
+          "Endpoint.Address"
+        ]
+      }
+    },
+    "TargetAuroraEndpointDns": {
+      "Description": "Target Aurora Instance",
+      "Value": {
+        "Fn::GetAtt": [
+          "AuroraDestinationDBInstance",
+          "Endpoint.Address"
+        ]
+      }
+    },
+    "VpcId": {
+      "Description": "VPC Identifier",
+      "Value": {
+        "Ref": "DmsVpc"
+      }
+    },
+    "EndpointApp": {
+      "Description": "Public DNSName of the newly created EC2 app instance",
+      "Value": {
+        "Fn::GetAtt": [
+          "EC2SourceApp",
+          "PublicDnsName"
+        ]
+      }
+    }
+  }
+}

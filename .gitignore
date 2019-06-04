@@ -1,0 +1,12 @@
+# Ignore secret files
+.secret
+# Ignore IntelliJ IDEA project settings
+.idea
+# Ignore office working copy
+~$*
+# Ignore virtualenv working dir
+venv
+# Ignore pycache
+**/__pycache__
+# Ignore *.pyc and *.pyo
+**/*.py[co]
